@@ -20,22 +20,33 @@ type Result<T> = std::result::Result<T, Box<Error + Send + Sync>>;
 fn run_exec(exec: Chunk, blorb: BlorbCursor<File>) -> Result<i32> {
     use blorb::Chunk::*;
     match exec {
-        Adrift{code} => println!("got code!"),
-        AdvSys{code} => println!("got code!"),
-        Agt{code} => println!("got code!"),
-        Alan{code} => println!("got code!"),
-        Exec{code} => println!("got code!"),
-        Glulx{code} => machine::glulx::run(code, blorb),
-        Hugo{code} => println!("got code!"),
-        Level9{code} => println!("got code!"),
-        MagneticScrolls{code} => println!("got code!"),
-        Tads2{code} => println!("got code!"),
-        Tads3{code} => println!("got code!"),
-        ZCode{code} => println!("got code!"),
-        Unknown{..} => println!("unrecognized chunk"),
-        _ => println!("non-executable chunk found"),
-    };
-    Ok(0)
+        Adrift{..}
+                | AdvSys{..}
+                | Agt{..}
+                | Alan{..}
+                | Exec{..}
+                | Hugo{..}
+                | Level9{..}
+                | MagneticScrolls{..}
+                | Tads2{..}
+                | Tads3{..}
+                | ZCode{..} => {
+            println!("unsupported game type");
+            Ok(1)
+        },
+        Unknown{..} => {
+            println!("unrecognized chunk");
+            Ok(1)
+        },
+        Glulx{code} => {
+            machine::glulx::run(code, blorb);
+            Ok(0)
+        },
+        _ => {
+            println!("non-executable chunk found");
+            Ok(1)
+        }
+    }
 }
 
 fn run(file: String) -> Result<i32> {
