@@ -2,8 +2,10 @@ extern crate blorb;
 extern crate glulx;
 
 use std::env::args;
-use std::fs::File;
 use std::error::Error;
+use std::fs::File;
+use std::io::Read;
+use std::path::Path;
 
 use blorb::{
     BlorbCursor,
@@ -17,7 +19,7 @@ mod machine;
 type Result<T> = std::result::Result<T, Box<Error + Send + Sync>>;
 
 
-fn run_exec(exec: Chunk, blorb: BlorbCursor<File>) -> Result<i32> {
+fn run_blorb(exec: Chunk, blorb: BlorbCursor<File>) -> Result<i32> {
     use blorb::Chunk::*;
     match exec {
         Adrift{..}
@@ -39,7 +41,7 @@ fn run_exec(exec: Chunk, blorb: BlorbCursor<File>) -> Result<i32> {
             Ok(1)
         },
         Glulx{code} => {
-            machine::glulx::run(code, blorb);
+            machine::glulx::run_blorb(code, blorb);
             Ok(0)
         },
         _ => {
@@ -49,13 +51,28 @@ fn run_exec(exec: Chunk, blorb: BlorbCursor<File>) -> Result<i32> {
     }
 }
 
+
 fn run(file: String) -> Result<i32> {
-    File::open(file)
-        .and_then(|rom| BlorbCursor::from_file(rom))
-        .and_then(|mut blorb| blorb.load_resource(Usage::Exec, 0)
-            .map(|chunk| (chunk, blorb)))
-        .map_err(|err| err.into())
-        .and_then(|(chunk, blorb)| run_exec(chunk, blorb))
+    let file = Path::new(&file);
+
+
+    if let Some("ulx") = file.extension().and_then(|x|x.to_str()) {
+        File::open(file)
+            .map_err(|err| err.into())
+            .and_then(|mut rom| {
+                let mut code = Vec::new();
+                rom.read_to_end(&mut code)?;
+                machine::glulx::run(code);
+                Ok(0)
+            })
+    } else {
+        File::open(file)
+            .and_then(|rom| BlorbCursor::from_file(rom))
+            .and_then(|mut blorb| blorb.load_resource(Usage::Exec, 0)
+                .map(|chunk| (chunk, blorb)))
+            .map_err(|err| err.into())
+            .and_then(|(chunk, blorb)| run_blorb(chunk, blorb))
+    }
 }
 
 
